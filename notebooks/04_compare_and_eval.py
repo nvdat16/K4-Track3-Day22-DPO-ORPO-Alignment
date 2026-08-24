@@ -37,6 +37,23 @@ DPO_PATH = REPO_ROOT / "adapters" / "dpo"
 EVAL_OUT = REPO_ROOT / "data" / "eval"
 EVAL_OUT.mkdir(parents=True, exist_ok=True)
 
+
+def load_env_file(path: Path):
+    """Small .env loader for notebooks; keeps API keys out of notebook output."""
+    if not path.exists():
+        return
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.split("#", 1)[0].strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+load_env_file(REPO_ROOT / ".env")
+
 assert SFT_PATH.exists() and DPO_PATH.exists(), "NB1 + NB3 must run first"
 
 EVAL_PROMPTS = [
@@ -69,6 +86,20 @@ from peft import PeftModel
 import gc
 
 
+def render_chat(tokenizer, messages, add_generation_prompt=False):
+    """Use tokenizer chat template when present; otherwise fall back to Qwen ChatML."""
+    if tokenizer.chat_template:
+        return tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=add_generation_prompt
+        )
+    text = ""
+    for message in messages:
+        text += f"<|im_start|>{message['role']}\n{message['content']}<|im_end|>\n"
+    if add_generation_prompt:
+        text += "<|im_start|>assistant\n"
+    return text
+
+
 def generate_with_adapter(adapter_path: Path, prompts: list[dict], max_new_tokens: int = 256):
     """Load base + adapter, generate for all prompts, free memory, return outputs."""
     model, tokenizer = FastLanguageModel.from_pretrained(
@@ -86,9 +117,8 @@ def generate_with_adapter(adapter_path: Path, prompts: list[dict], max_new_token
     outputs = []
     for p in prompts:
         messages = [{"role": "user", "content": p["prompt"]}]
-        inputs = tokenizer.apply_chat_template(
-            messages, return_tensors="pt", add_generation_prompt=True
-        ).to("cuda")
+        prompt_text = render_chat(tokenizer, messages, add_generation_prompt=True)
+        inputs = tokenizer(prompt_text, return_tensors="pt").input_ids.to("cuda")
         with torch.no_grad():
             out = model.generate(
                 input_ids=inputs,

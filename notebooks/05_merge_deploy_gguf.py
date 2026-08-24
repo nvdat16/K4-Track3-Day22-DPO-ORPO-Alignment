@@ -68,10 +68,9 @@ model, tokenizer = FastLanguageModel.from_pretrained(
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
-# Stack SFT-mini → DPO adapters
-SFT_PATH = REPO_ROOT / "adapters" / "sft-mini"
-model = PeftModel.from_pretrained(model, str(SFT_PATH))
-print(f"Loaded SFT-mini adapter from {SFT_PATH}")
+# NB3 saves the final policy adapter used by NB4 (SFT-initialized, then DPO-trained).
+model = PeftModel.from_pretrained(model, str(DPO_PATH))
+print(f"Loaded SFT+DPO adapter from {DPO_PATH}")
 
 # %% [markdown]
 # > **Note:** The DPO adapter trained in NB3 stacks on top of SFT. To get a fully
@@ -95,30 +94,12 @@ model.save_pretrained_merged(
 )
 print(f"Saved merged FP16 to {MERGED_PATH}")
 
-# Free GPU memory before GGUF conversion (which spawns a subprocess that needs RAM)
-import gc
-
-del model
-gc.collect()
-torch.cuda.empty_cache()
-
 # %% [markdown]
 # ## 3. Quantize to GGUF Q4_K_M
 #
 # Q4_K_M is the sweet spot: ~4× compression vs FP16, minimal quality loss.
 # Unsloth wraps llama.cpp's `quantize` binary — first run downloads + compiles
 # llama.cpp (~3 min) then quantizes (~30 s).
-
-# %%
-# Reload the merged model — Unsloth's GGUF saver expects a live model handle.
-from unsloth import FastLanguageModel as FLM
-
-model, tokenizer = FLM.from_pretrained(
-    model_name=str(MERGED_PATH),
-    max_seq_length=MAX_LEN,
-    dtype=None,
-    load_in_4bit=False,    # already merged; load full precision
-)
 
 # %%
 # Save GGUF in 1 quantization tier (Q4_K_M). Add more tiers below if you want the
@@ -148,6 +129,8 @@ for p in sorted(GGUF_DIR.iterdir()):
     if p.suffix == ".gguf":
         size_mb = p.stat().st_size / 1e6
         print(f"  {p.name:50s}  {size_mb:>8.1f} MB")
+
+import gc
 
 del model
 gc.collect()
