@@ -95,7 +95,7 @@ NB6 was not run, so there is no `data/eval/benchmark_results.json` result for IF
 ## Bonus
 
 - [ ] Đã làm β-sweep (rigor add-on +6)
-- [ ] Đã push lên HuggingFace Hub (Submission Option B, +5)
+- [x] Đã push lên HuggingFace Hub (Submission Option B, +5): https://huggingface.co/nvdat1601/lab22-dpo-vn
 - [ ] Đã release GGUF với multiple quantizations (+3)
 - [ ] Đã link W&B run public (+2)
 - [ ] Đã làm cross-judge comparison (+4)
