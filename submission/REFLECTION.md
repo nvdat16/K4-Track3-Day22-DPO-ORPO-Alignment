@@ -25,10 +25,10 @@
 
 | Metric | SFT-only baseline | SFT + DPO |
 |---|---:|---:|
-| Training time (NB3) |  |  |
+| Training time (NB3) | 04:39 | 2:38:00 |
 | VRAM peak | 22GB | 24GB |
-| Final loss | 1.4758 | 0.7589 |
-| Reward gap (chosen − rejected, end of training) | n/a | 0.1910 |
+| Final loss | 1.4758 | 0.6737 |
+| Reward gap (chosen − rejected, end of training) | n/a | 0.369 |
 | Mean output length | long, often repetitive | similar length; still often repetitive |
 
 **Tulu 3 reference numbers** (from deck §7.2b, for context only):
